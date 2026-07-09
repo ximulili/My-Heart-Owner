@@ -38,6 +38,21 @@ H.imexport = (function(){
       let gid;
       if(data.group){ const g=await H.store.getGroups(); if(!g.find(x=>x.name===data.group.name)){ const ng={...data.group,id:H.store.uid()}; g.push(ng); await H.store.saveGroups(g); gid=ng.id; } else { gid=g.find(x=>x.name===data.group.name).id; } }
       if(data.cards){ const c=await H.store.getCards(); const newCards=data.cards.map(x=>({...x,id:H.store.uid(),groupId:gid||x.groupId})); await H.store.saveCards([...c,...newCards]); }
+    } else if(Array.isArray(data)){
+      // SN 格式：[{groupId, replyText, id}...]，按 groupId 字符串建分组
+      const groups=await H.store.getGroups();
+      const gMap={};
+      for(const it of data){
+        const gn=it.groupId||''; if(gn && !(gn in gMap)){
+          let eg=groups.find(g=>g.name===gn);
+          if(!eg){ eg={id:H.store.uid(),name:gn,color:H.cards.colorFor(gn),disabled:false}; groups.push(eg); }
+          gMap[gn]=eg.id;
+        }
+      }
+      const cards=data.map(it=>({id:H.store.uid(),groupId:gMap[it.groupId||'']||'',text:it.replyText||'',disabled:false}));
+      await H.store.saveGroups(groups);
+      if(mode==='overwrite') await H.store.saveCards(cards);
+      else { const c=await H.store.getCards(); await H.store.saveCards([...c,...cards]); }
     } else throw new Error('无法识别的数据格式（缺少 _type）');
   }
   function download(filename, text){
