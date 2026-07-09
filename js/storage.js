@@ -83,7 +83,7 @@ H.store = (function(){
   }
 
   // 配置便捷读写
-  async function getSettings(){ return Object.assign({}, DEFAULT_SETTINGS, await get(KEYS.settings, {})); }
+  async function getSettings(){ const raw=await get(KEYS.settings,{}); const merged={...DEFAULT_SETTINGS}; for(const k in raw){ if(k in DEFAULT_SETTINGS) merged[k]=raw[k]; } return merged; }
   async function saveSettings(obj){ const cur = await getSettings(); const next = Object.assign({}, cur, obj); await set(KEYS.settings, next); return next; }
 
   return {

@@ -31,14 +31,15 @@ H.sticker = (function(){
     const who=tab==='mine'?'mine':'other';
     const imgs=await H.store.getStickers(who);
     let html='<div class="combo-grid">';
+    let customEmoji=[];
     if(who==='mine'){
-      const customEmoji=await H.store.getEmojiCustom();
-      const allEmoji=[...H.store.EMOJI_BUILTIN.flatMap(c=>c.items), ...customEmoji];
-      html += allEmoji.map(e=>`<div class="combo-item" data-emoji="${esc(e)}">${e}</div>`).join('');
+      customEmoji=await H.store.getEmojiCustom();
+      html += customEmoji.map(e=>`<div class="combo-item" data-emoji="${esc(e)}">${e}</div>`).join('');
     }
     html += imgs.map(s=>`<div class="combo-item" data-img="${s.id}"><img src="${s.data}"></div>`).join('');
     html+='</div>';
-    if(!imgs.length && who==='other') html='<div class="combo-empty">还没有表情，点右上 ＋ 上传图片</div>';
+    if(!imgs.length && !customEmoji.length && who==='mine') html='<div class="combo-empty">还没有表情，点右上 ＋ 添加</div>';
+    else if(!imgs.length && who==='other') html='<div class="combo-empty">还没有表情，点右上 ＋ 上传图片</div>';
     content.innerHTML=html;
     content.querySelectorAll('[data-emoji]').forEach(el=>el.onclick=()=>{ H.chat.sendStickerEmoji(el.dataset.emoji); togglePopover(); });
     content.querySelectorAll('[data-img]').forEach(el=>el.onclick=async ()=>{
