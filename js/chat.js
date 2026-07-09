@@ -1,0 +1,153 @@
+/* chat.js — 消息渲染/已读状态机/对方回复/引用 */
+H.chat = (function(){
+  let messages = [];
+  let replyTarget = null;
+
+  async function load(){ messages = await H.store.getMessages(); }
+  async function save(){ await H.store.saveMessages(messages); }
+
+  function now(){ return Date.now(); }
+  function dateStr(ts){ const d=new Date(ts); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+  function timeStr(ts){ const d=new Date(ts); return p(d.getHours())+':'+p(d.getMinutes()); }
+  function p(n){ return n<10?'0'+n:n; }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  async function render(){
+    const s = await H.store.getSettings();
+    const box = document.getElementById('chatContainer');
+    box.innerHTML='';
+    if(!messages.length){ box.innerHTML='<div class="empty-hint">还没有消息，发点什么吧</div>'; return; }
+    let lastDate='', lastSender='';
+    for(const m of messages){
+      const d=dateStr(m.ts);
+      if(d!==lastDate){ box.insertAdjacentHTML('beforeend',`<div class="date-divider">${d}</div>`); lastDate=d; lastSender=''; }
+      if(m.sender==='system'){ box.insertAdjacentHTML('beforeend',`<div class="message-wrapper system"><div class="system-message">${esc(m.text)}</div></div>`); lastSender='system'; continue; }
+      const hideAv = m.sender===lastSender;
+      box.insertAdjacentHTML('beforeend', msgHtml(m, s, hideAv));
+      lastSender=m.sender;
+    }
+    scrollToBottom();
+    bindMsgEvents();
+  }
+
+  function msgHtml(m, s, hideAv){
+    const av = m.sender==='me'
+      ? `<div class="message-avatar ${hideAv?'hidden':''}" style="background-image:url('${s.meAvatar||'assets/default-avatar.svg'}')"></div>`
+      : `<div class="message-avatar ${hideAv?'hidden':''}" style="background-image:url('${s.otherAvatar||'assets/default-avatar.svg'}')"></div>`;
+    let inner='';
+    if(m.quote){ inner += `<div class="reply-quote">${esc(m.quote.sender)}：${esc(m.quote.text)}</div>`; }
+    if(m.type==='text'||m.type==='sticker-emoji'){ inner += `<span>${esc(m.text)}</span>`; }
+    else if(m.type==='image'||m.type==='sticker-img'){ inner += `<img class="message-img" src="${m.dataUrl}" data-full="${m.dataUrl}">`; }
+    else if(m.type==='voice'){ inner += voiceHtml(m); }
+    const readTag = m.sender==='me' ? ` · <span class="message-read ${m.read||'sent'}">${readLabel(m.read)}</span>` : '';
+    const dir = m.sender==='me'?'sent':'received';
+    return `<div class="message-wrapper ${dir}" data-id="${m.id}">
+      ${av}
+      <div class="message-bubble-wrap">
+        <div class="message">${inner}</div>
+        <div class="message-meta">${timeStr(m.ts)}${readTag}</div>
+      </div>
+    </div>`;
+  }
+  function readLabel(r){ return r==='read'?'已读':r==='noreply'?'已读不回':'已送达'; }
+  function voiceHtml(m){
+    let bars=''; for(let i=0;i<10;i++){ const h=4+Math.round(Math.random()*12); bars+=`<i style="height:${h}px"></i>`; }
+    return `<div class="message-voice" data-voice="${m.dataUrl}"><div class="voice-wave">${bars}</div><span class="voice-dur">${m.dur||0}"</span></div>`;
+  }
+
+  function bindMsgEvents(){
+    document.querySelectorAll('.message-img').forEach(img=>img.onclick=()=>H.ui.previewImg(img.dataset.full));
+    document.querySelectorAll('[data-voice]').forEach(v=>v.onclick=()=>H.voice.play(v.dataset.voice));
+    // 长按/点击我方消息：回复或删除
+    document.querySelectorAll('.message-wrapper').forEach(w=>{
+      let pressT;
+      w.addEventListener('pointerdown',()=>{
+        pressT=setTimeout(()=>showMsgActions(w.dataset.id),500);
+      });
+      w.addEventListener('pointerup',()=>clearTimeout(pressT));
+      w.addEventListener('pointerleave',()=>clearTimeout(pressT));
+    });
+  }
+  function showMsgActions(id){
+    const m = messages.find(x=>x.id===id);
+    if(!m||m.sender==='system') return;
+    H.ui.actionSheet([
+      {label:'回复', fn:()=>setReply(m)},
+      ...(m.sender==='me'?[{label:'删除',danger:true, fn:async()=>{ messages=messages.filter(x=>x.id!==id); await save(); render(); }}]:[])
+    ]);
+  }
+
+  function setReply(m){ replyTarget=m; const box=document.getElementById('replyPreview'); document.getElementById('replyName').textContent=(m.sender==='me'?'我':m.senderName||'TA'); document.getElementById('replyText').textContent=(m.text||'[图片/语音]'); box.hidden=false; }
+  function clearReply(){ replyTarget=null; document.getElementById('replyPreview').hidden=true; }
+
+  function scrollToBottom(){ const a=document.getElementById('chatArea'); a.scrollTop=a.scrollHeight; }
+
+  // ---- 发送 ----
+  async function sendText(text){
+    text=(text||'').trim(); if(!text) return;
+    const m={ id:H.store.uid(), sender:'me', type:'text', text, quote:replyTarget?{sender:replyTarget.sender==='me'?'我':(replyTarget.senderName||'TA'), text:replyTarget.text||'[非文字]'}:null, ts:now(), read:'sent' };
+    messages.push(m); await save(); clearReply(); render();
+    startReadMachine(m.id);
+  }
+  async function sendImage(dataUrl){
+    const m={ id:H.store.uid(), sender:'me', type:'image', dataUrl, text:'', quote:null, ts:now(), read:'sent' };
+    messages.push(m); await save(); render(); startReadMachine(m.id);
+  }
+  async function sendVoice(dataUrl, dur){
+    const m={ id:H.store.uid(), sender:'me', type:'voice', dataUrl, dur, text:'', quote:null, ts:now(), read:'sent' };
+    messages.push(m); await save(); render(); startReadMachine(m.id);
+  }
+  async function sendStickerEmoji(emoji){
+    const m={ id:H.store.uid(), sender:'me', type:'sticker-emoji', text:emoji, quote:null, ts:now(), read:'sent' };
+    messages.push(m); await save(); render(); startReadMachine(m.id);
+  }
+  async function sendStickerImg(dataUrl){
+    const m={ id:H.store.uid(), sender:'me', type:'sticker-img', dataUrl, text:'', quote:null, ts:now(), read:'sent' };
+    messages.push(m); await save(); render(); startReadMachine(m.id);
+  }
+  async function appendSystem(text){
+    messages.push({ id:H.store.uid(), sender:'system', type:'system', text, ts:now() });
+    await save(); render();
+  }
+
+  // ---- 已读状态机 ----
+  function startReadMachine(msgId){
+    H.store.getSettings().then(s=>{
+      const delay = s.readDelayMin + Math.random()*(s.readDelayMax - s.readDelayMin);
+      setTimeout(async ()=>{
+        const m = messages.find(x=>x.id===msgId);
+        if(!m) return;
+        const noReply = Math.random()*100 < (s.noReplyChance||0);
+        if(noReply){
+          m.read='noreply'; await save(); render();
+        } else {
+          m.read='read'; await save(); render();
+          triggerReply(s);
+        }
+      }, delay);
+    });
+  }
+
+  async function triggerReply(s){
+    s = s || await H.store.getSettings();
+    const typingEl=document.getElementById('typingHint');
+    typingEl.firstChild.textContent=(s.partnerName||'白厄')+'正在输入';
+    typingEl.hidden=false;
+    const delay = ((s.typingMin||1) + Math.random()*((s.typingMax||3)-(s.typingMin||1)))*1000;
+    setTimeout(async ()=>{
+      typingEl.hidden=true;
+      const msgs = await H.cards.generateReply();
+      for(const t of msgs){
+        messages.push({ id:H.store.uid(), sender:'other', senderName:s.partnerName||'白厄', type:'text', text:t, quote:null, ts:now() });
+      }
+      await save(); render();
+    }, s.typingMs||1500);
+  }
+
+  return {
+    load, render, save,
+    sendText, sendImage, sendVoice, sendStickerEmoji, sendStickerImg, appendSystem,
+    setReply, clearReply, scrollToBottom, triggerReply,
+    get messages(){return messages;}, get replyTarget(){return replyTarget;}
+  };
+})();
