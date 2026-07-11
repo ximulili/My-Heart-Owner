@@ -153,8 +153,16 @@ H.chat = (function(){
     }
   }
 
-  document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState==='visible') processPending();
+  document.addEventListener('visibilitychange', async()=>{
+    if(document.visibilityState==='visible'){
+      // 从存储加载 SW 可能写入的新消息
+      const stored = await H.store.getMessages();
+      if(stored.length > messages.length){
+        messages = stored;
+        render();
+      }
+      processPending();
+    }
   });
 
   async function triggerReply(s){

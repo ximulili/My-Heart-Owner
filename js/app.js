@@ -66,9 +66,24 @@ H.app = (function(){
     H.call.initDrag();
     bindEvents();
     startScheduler();
-    // PWA 注册
-    if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js'); }
+    // PWA 注册 + 后台调度
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('sw.js').then(reg=>{
+        if(reg.active) reg.active.postMessage(document.hidden?'startBg':'stopBg');
+        // 监听 SW 消息
+        navigator.serviceWorker.addEventListener('message',e=>{
+          if(e.data && e.data.type==='sw:newMessages'){
+            H.chat.load().then(()=>H.chat.render());
+          }
+        });
+      });
+    }
     if('Notification' in window && Notification.permission==='default'){ Notification.requestPermission(); }
+    // 后台切换：通知 SW 接管/归还调度
+    document.addEventListener('visibilitychange',()=>{
+      if(!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+      navigator.serviceWorker.controller.postMessage(document.hidden?'startBg':'stopBg');
+    });
   }
 
   function bindEvents(){
