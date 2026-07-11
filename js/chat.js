@@ -2,6 +2,8 @@
 H.chat = (function(){
   let messages = [];
   let replyTarget = null;
+  const pendingReads = new Map(); // msgId -> {ts, timer}
+  let pendingReply = null; // {s, timer, fireAt}
 
   async function load(){ messages = await H.store.getMessages(); }
   async function save(){ await H.store.saveMessages(messages); }
@@ -111,40 +113,80 @@ H.chat = (function(){
     await save(); render();
   }
 
-  // ---- 已读状态机 ----
+  // ---- 已读状态机（后台安全） ----
   function startReadMachine(msgId){
     H.store.getSettings().then(s=>{
       const delay = s.readDelayMin + Math.random()*(s.readDelayMax - s.readDelayMin);
-      setTimeout(async ()=>{
-        const m = messages.find(x=>x.id===msgId);
-        if(!m) return;
-        const noReply = Math.random()*100 < (s.noReplyChance||0);
-        if(noReply){
-          m.read='noreply'; await save(); render();
-        } else {
-          m.read='read'; await save(); render();
-          triggerReply(s);
-        }
-      }, delay);
+      const fireAt = Date.now() + delay;
+      const timer = setTimeout(()=>{ pendingReads.delete(msgId); processRead(msgId, s); }, delay);
+      pendingReads.set(msgId, {ts:Date.now(), delay, fireAt, s, timer});
     });
   }
 
+  async function processRead(msgId, s){
+    const m = messages.find(x=>x.id===msgId);
+    if(!m) return;
+    const noReply = Math.random()*100 < (s.noReplyChance||0);
+    if(noReply){
+      m.read='noreply'; await save(); render();
+    } else {
+      m.read='read'; await save(); render();
+      triggerReply(s);
+    }
+  }
+
+  // 页面切回前台时，立即处理到期的已读和回复
+  function processPending(){
+    const now = Date.now();
+    for(const [msgId, info] of pendingReads){
+      if(now >= info.fireAt){
+        clearTimeout(info.timer);
+        pendingReads.delete(msgId);
+        processRead(msgId, info.s);
+      }
+    }
+    if(pendingReply && now >= pendingReply.fireAt){
+      clearTimeout(pendingReply.timer);
+      const s = pendingReply.s;
+      pendingReply = null;
+      fireReply(s);
+    }
+  }
+
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='visible') processPending();
+  });
+
   async function triggerReply(s){
     s = s || await H.store.getSettings();
-    const delay = ((s.typingMin||1) + Math.random()*((s.typingMax||3)-(s.typingMin||1)))*1000;
-    H.statusbar.showTyping(true, s.partnerName);
-    setTimeout(async ()=>{
-      H.statusbar.showTyping(false);
+    const tMin = Number(s.typingMin)||1, tMax = Number(s.typingMax)||3;
+    const delay = (tMin + Math.random()*(tMax - tMin))*1000;
+    const el = document.getElementById('typingHint');
+    if(el){
+      const nameEl = el.querySelector('.typing-name');
+      if(nameEl) nameEl.textContent = (s.partnerName||'TA');
+      el.hidden = false;
+    }
+    const fireAt = Date.now() + delay;
+    const timer = setTimeout(()=>{ pendingReply=null; fireReply(s); }, delay);
+    pendingReply = {s, timer, fireAt};
+  }
+
+  async function fireReply(s){
+    const el = document.getElementById('typingHint');
+    if(el) el.hidden = true;
+    const tMin = Number(s.typingMin)||1, tMax = Number(s.typingMax)||3;
+    try {
       const msgs = await H.cards.generateReply();
       for(let i=0;i<msgs.length;i++){
         messages.push({ id:H.store.uid(), sender:'other', senderName:s.partnerName||'白厄', type:'text', text:msgs[i], quote:null, ts:now() });
         await save(); render();
         if(i<msgs.length-1){
-          const gap=((s.typingMin||1)+Math.random()*((s.typingMax||3)-(s.typingMin||1)))*1000;
+          const gap=(tMin + Math.random()*(tMax - tMin))*1000;
           await new Promise(r=>setTimeout(r,gap));
         }
       }
-    }, delay);
+    } catch(e){ console.error('fireReply:',e); }
   }
 
   return {

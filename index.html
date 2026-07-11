@@ -45,6 +45,7 @@
   <main class="main-chat-area" id="chatArea">
     <div class="chat-container" id="chatContainer">
       <div class="empty-hint" id="emptyHint">还没有消息，发点什么吧</div>
+      <div id="typingHint" class="typing-hint" hidden><span class="typing-name">白厄</span><span class="typing-dots"><i></i><i></i><i></i></span></div>
     </div>
   </main>
 
@@ -94,26 +95,28 @@
 
 </div>
 
-<!-- ===== 通话浮动窗口 ===== -->
-<div class="call-window" id="callWindow" hidden>
-  <div class="call-header" id="callHeader">
+<!-- ===== 通话全屏覆盖层 ===== -->
+<div id="callOverlay" class="call-overlay" hidden>
+  <div class="call-top">
     <span class="call-status-dot" id="callStatusDot"></span>
+    <span class="call-status-text" id="callStatusText">呼叫中...</span>
     <span class="call-timer" id="callTimer">00:00</span>
-    <span class="call-spacer"></span>
-    <button class="call-mini" id="callMinimize" title="最小化">—</button>
-    <button class="call-close" id="callCloseBtn" title="挂断">×</button>
   </div>
-  <div class="call-body" id="callBody">
-    <div class="call-avatar" id="callAvatar"></div>
-    <div class="call-name" id="callName">白厄</div>
-    <div class="call-wave" id="callWave"></div>
-    <div class="call-status-text" id="callStatusText">呼叫中...</div>
+  <div class="call-center">
+    <div class="call-avatar-big" id="callAvatar"></div>
+    <div class="call-name-big" id="callName">白厄</div>
+    <div class="call-wave" id="callWave"><i></i><i></i><i></i><i></i><i></i></div>
   </div>
-  <div class="call-controls">
-    <button class="call-hangup" id="callHangup" title="挂断">
-      <svg viewBox="0 0 24 24" class="icon"><path d="M12 9c-1.6 0-3.1.3-4.5.8v3c0 .5-.4 1-1 1H4.5c-.5 0-1-.4-1-1V9.8C5.5 7.8 8.6 6.5 12 6.5s6.5 1.3 8.5 3.3v3c0 .5-.4 1-1 1h-2c-.5 0-1-.4-1-1v-3C15.1 9.3 13.6 9 12 9z" fill="currentColor"/></svg>
-    </button>
-  </div>
+  <div class="call-actions" id="callActions"></div>
+  <div class="call-video-pane" id="callVideoPane" hidden>对方画面</div>
+</div>
+
+<!-- ===== 通话最小化浮块 ===== -->
+<div id="callMiniBar" class="call-mini-bar" hidden>
+  <div class="call-mini-avatar" id="callMiniAvatar"></div>
+  <span class="call-mini-name" id="callMiniName">白厄</span>
+  <span class="call-mini-timer" id="callMiniTimer">00:00</span>
+  <button class="call-mini-hangup" id="callMiniHangup" title="挂断">×</button>
 </div>
 
 <!-- ===== 拍一拍面板 ===== -->
