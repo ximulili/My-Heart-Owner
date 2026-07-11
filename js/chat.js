@@ -75,10 +75,24 @@ H.chat = (function(){
   function showMsgActions(id){
     const m = messages.find(x=>x.id===id);
     if(!m||m.sender==='system') return;
-    H.ui.actionSheet([
+    const actions = [
       {label:'回复', fn:()=>setReply(m)},
-      ...(m.sender==='me'?[{label:'删除',danger:true, fn:async()=>{ messages=messages.filter(x=>x.id!==id); await save(); render(); }}]:[])
-    ]);
+      {label:'删除', danger:true, fn:async()=>{
+        messages = messages.filter(x=>x.id!==id);
+        await save(); render();
+      }}
+    ];
+    // 我发的消息才有撤回功能
+    if(m.sender==='me'){
+      actions.push({label:'撤回', danger:true, fn:async()=>{
+        const s = await H.store.getSettings();
+        const name = s.meName || '我';
+        messages = messages.filter(x=>x.id!==id);
+        messages.push({ id:H.store.uid(), sender:'system', type:'system', text:`${name}撤回了一条消息`, ts:now() });
+        await save(); render();
+      }});
+    }
+    H.ui.actionSheet(actions);
   }
 
   function setReply(m){ replyTarget=m; const box=document.getElementById('replyPreview'); document.getElementById('replyName').textContent=(m.sender==='me'?'我':m.senderName||'TA'); document.getElementById('replyText').textContent=(m.text||'[图片/语音]'); box.hidden=false; }
@@ -188,8 +202,20 @@ H.chat = (function(){
     try {
       const msgs = await H.cards.generateReply();
       for(let i=0;i<msgs.length;i++){
-        messages.push({ id:H.store.uid(), sender:'other', senderName:s.partnerName||'白厄', type:'text', text:msgs[i], quote:null, ts:now() });
+        const msg={ id:H.store.uid(), sender:'other', senderName:s.partnerName||'白厄', type:'text', text:msgs[i], quote:null, ts:now() };
+        messages.push(msg);
         await save(); render();
+
+        // 触发通知
+        if(document.hidden){
+          // 页面在后台：浏览器通知
+          H.ui.showNotification(s.partnerName||'TA', msgs[i]);
+        } else if(!H.app.isChatVisible()){
+          // 页面在前台但聊天界面被挡住：应用内 Banner
+          H.ui.showBanner(s.partnerName||'TA', msgs[i], scrollToBottom);
+        }
+        // 如果聊天界面可见，不弹出任何通知
+
         if(i<msgs.length-1){
           const gap=(tMin + Math.random()*(tMax - tMin))*1000;
           await new Promise(r=>setTimeout(r,gap));

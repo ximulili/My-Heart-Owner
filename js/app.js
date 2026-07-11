@@ -32,16 +32,110 @@ H.ui = (function(){
   function previewImg(url){
     modal('图片', `<img src="${url}" style="width:100%;border-radius:8px">`, ()=>{});
   }
+
+  // 应用内悬浮 Banner 通知
+  let bannerTimer=null;
+  function showBanner(title, body, onClick){
+    // 移除旧 Banner
+    const old=document.querySelector('.notification-banner');
+    if(old) old.remove();
+
+    const banner=document.createElement('div');
+    banner.className='notification-banner';
+    banner.innerHTML=`
+      <div class="banner-content">
+        <div class="banner-title">${title}</div>
+        <div class="banner-body">${body}</div>
+      </div>
+      <button class="banner-close">×</button>
+    `;
+    document.body.appendChild(banner);
+
+    // 点击关闭
+    banner.querySelector('.banner-close').onclick=()=>banner.remove();
+    // 点击整个 Banner
+    banner.onclick=(e)=>{
+      if(e.target.closest('.banner-close')) return;
+      banner.remove();
+      if(onClick) onClick();
+    };
+
+    // 5秒后自动消失
+    clearTimeout(bannerTimer);
+    bannerTimer=setTimeout(()=>{ if(banner.parentNode) banner.remove(); }, 5000);
+  }
+
+  // 浏览器原生通知
+  function showNotification(title, body){
+    if(document.hidden && 'Notification' in window && Notification.permission==='granted'){
+      try{
+        const n=new Notification(title,{body,tag:'heart-msg',renotify:true});
+        n.onclick=()=>{ window.focus(); n.close(); };
+      }catch(e){}
+    }
+  }
   function closeModal(){ document.getElementById('modalMask').hidden = true; }
   document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('modalClose').onclick = closeModal;
     document.getElementById('modalMask').addEventListener('click',(e)=>{ if(e.target.id==='modalMask') closeModal(); });
   });
-  return { modal, prompt, actionSheet, toast, previewImg, closeModal };
+  return { modal, prompt, actionSheet, toast, previewImg, closeModal, showBanner, showNotification };
 })();
 
 /* ===== 主应用 ===== */
 H.app = (function(){
+
+  // 图片压缩函数（参考 SN）
+  function compressImage(file, maxSize=1000, quality=0.72){
+    return new Promise((resolve)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        // 缩放
+        if(w > maxSize || h > maxSize){
+          const ratio = Math.min(maxSize/w, maxSize/h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        // 转换为 DataURL
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        // 如果压缩后仍大于 2MB，弹警告
+        if(dataUrl.length > 2*1024*1024){
+          H.ui.toast('图片较大，可能占用较多空间');
+        }
+        resolve(dataUrl);
+      };
+      img.onerror = ()=>{
+        // 如果不是图片，直接读取原文件
+        const r = new FileReader();
+        r.onload = ()=>resolve(r.result);
+        r.readAsDataURL(file);
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  // 判断聊天界面是否可见（没有被挡住）
+  function isChatVisible(){
+    // 如果页面在后台，聊天界面不可见
+    if(document.hidden) return false;
+    
+    // 检查是否有覆盖层挡住聊天界面
+    const callOverlay = document.getElementById('callOverlay');
+    const pokeOverlay = document.getElementById('pokeOverlay');
+    const modalMask = document.getElementById('modalMask');
+    
+    // 如果任何一个覆盖层可见，聊天界面就被挡住
+    if(callOverlay && !callOverlay.hidden) return false;
+    if(pokeOverlay && !pokeOverlay.hidden) return false;
+    if(modalMask && !modalMask.hidden) return false;
+    
+    // 聊天界面可见
+    return true;
+  }
 
   async function applyTheme(){
     const s = await H.store.getSettings();
@@ -66,35 +160,16 @@ H.app = (function(){
     H.call.initDrag();
     bindEvents();
     startScheduler();
-    // PWA 注册 + 后台调度
-    if('serviceWorker' in navigator){
-      navigator.serviceWorker.register('sw.js').then(async(reg)=>{
-        // 等待 SW 激活
-        const sw = reg.installing || reg.waiting || reg.active;
-        if(sw){
-          if(sw.state !== 'activated'){
-            await new Promise(r=>sw.addEventListener('statechange',()=>{if(sw.state==='activated')r()}));
-          }
-        }
-        //发送初始状态
-        if(navigator.serviceWorker.controller){
-          navigator.serviceWorker.controller.postMessage(document.hidden?'startBg':'stopBg');
-        }
-        // 监听 SW 消息
-        navigator.serviceWorker.addEventListener('message',e=>{
-          if(e.data && e.data.type==='sw:newMessages'){
-            H.chat.load().then(()=>H.chat.render());
-          }
-        });
-      });
-    }
+    // 初始化后台保活
+    H.keepalive.init();
+    // 请求通知权限
     if('Notification' in window && Notification.permission==='default'){
       Notification.requestPermission();
     }
-    // 后台切换：通知 SW 接管/归还调度
+    // 后台切换：页面可见时恢复保活
     document.addEventListener('visibilitychange',()=>{
-      if(navigator.serviceWorker && navigator.serviceWorker.controller){
-        navigator.serviceWorker.controller.postMessage(document.hidden?'startBg':'stopBg');
+      if(document.visibilityState==='visible'){
+        H.keepalive.tryPlay();
       }
     });
   }
@@ -117,7 +192,14 @@ H.app = (function(){
     input.addEventListener('keydown',(e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); H.chat.sendText(input.value); input.value=''; autoGrow(input); } });
     input.addEventListener('input', ()=>autoGrow(input));
     document.getElementById('btnImage').onclick = ()=> document.getElementById('imageFile').click();
-    document.getElementById('imageFile').onchange = (e)=>{ const f=e.target.files[0]; if(!f) return; if(f.size>2*1024*1024){H.ui.toast('图片不能超过2MB');return;} const r=new FileReader(); r.onload=()=>H.chat.sendImage(r.result); r.readAsDataURL(f); e.target.value=''; };
+    document.getElementById('imageFile').onchange = async (e)=>{
+      const f=e.target.files[0];
+      if(!f) return;
+      e.target.value='';
+      // 压缩图片
+      const compressed = await compressImage(f, 1000, 0.72);
+      H.chat.sendImage(compressed);
+    };
     document.getElementById('btnSticker').onclick = ()=> H.sticker.togglePopover();
     H.voice.bind(document.getElementById('btnVoice'));
     // 引用关闭
@@ -160,7 +242,7 @@ H.app = (function(){
     });
   }
 
-  return { init, applyTheme, applyChatBg };
+  return { init, applyTheme, applyChatBg, compressImage, isChatVisible };
 })();
 
 document.addEventListener('DOMContentLoaded', ()=> H.app.init());

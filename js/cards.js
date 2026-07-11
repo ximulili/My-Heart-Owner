@@ -46,6 +46,14 @@ H.cards = (function(){
     const c = { id: H.store.uid(), groupId: groupId||'', text, disabled:false };
     cards.push(c); await H.store.saveCards(cards); return c;
   }
+  async function addCardsBatch(texts, groupId){
+    const cards = await H.store.getCards();
+    for(const text of texts){
+      if(!text.trim()) continue;
+      cards.push({ id: H.store.uid(), groupId: groupId||'', text: text.trim(), disabled:false });
+    }
+    await H.store.saveCards(cards);
+  }
   async function updateCard(id, patch){
     const cards = await H.store.getCards();
     const c = cards.find(x=>x.id===id); if(c){ Object.assign(c, patch); await H.store.saveCards(cards); }
@@ -100,6 +108,7 @@ H.cards = (function(){
         <input class="card-search" id="cardKw" placeholder="搜索字卡..." value="${esc(kw)}">
         <button class="btn-ghost" id="newGroup">新建分组</button>
         <button class="btn-primary" id="newCard">新建字卡</button>
+        <button class="btn-ghost" id="batchAdd">批量添加</button>
         <button class="btn-ghost" id="importCards">导入字卡</button>
         <button class="btn-ghost" id="exportCards">导出字卡</button>
       </div>
@@ -135,6 +144,19 @@ H.cards = (function(){
         const n = b2.querySelector('#p_name').value.trim();
         if(!n){ H.ui.toast('名称不能为空'); return; }
         await addGroup(n); H.ui.closeModal(); renderManager();
+      });
+    };
+    box.querySelector('#batchAdd').onclick = async ()=>{
+      const groups = await H.store.getGroups();
+      const opts = '<option value="">未分组</option>' + groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('');
+      H.ui.prompt('批量添加字卡', `<textarea id="p_text" rows="8" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px" placeholder="每行一条字卡，回车换行"></textarea><div style="margin-top:8px"><label style="font-size:13px">分组：</label><select id="p_grp" style="padding:4px;border:1px solid var(--border);border-radius:6px">${opts}</select></div>`, async (b2)=>{
+        const t = b2.querySelector('#p_text').value.trim();
+        if(!t){ H.ui.toast('内容不能为空'); return; }
+        const lines = t.split('\n').map(l=>l.trim()).filter(Boolean);
+        if(!lines.length){ H.ui.toast('内容不能为空'); return; }
+        await addCardsBatch(lines, b2.querySelector('#p_grp').value);
+        H.ui.closeModal(); renderManager();
+        H.ui.toast(`已添加 ${lines.length} 条字卡`);
       });
     };
     box.querySelectorAll('[data-act]').forEach(b=>b.onclick=async ()=>{

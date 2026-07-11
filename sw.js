@@ -92,8 +92,18 @@ function stopBgSchedule(){
 }
 
 self.addEventListener('install',()=>self.skipWaiting());
-self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
+self.addEventListener('activate',e=>{
+  e.waitUntil(self.clients.claim());
+  // 激活后自动启动后台调度
+  startBgSchedule();
+});
 self.addEventListener('message',async(e)=>{
   if(e.data==='startBg') startBgSchedule();
   else if(e.data==='stopBg') stopBgSchedule();
+});
+// 定期唤醒 SW（防止被浏览器杀死）
+self.addEventListener('periodicsync',e=>{
+  if(e.tag==='heart-bg-sync'){
+    e.waitUntil(generateAndStore());
+  }
 });
