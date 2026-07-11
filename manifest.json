@@ -1,1 +1,19 @@
-{"name":"Heart","short_name":"Heart","start_url":".","display":"standalone","background_color":"#FFFFFF","icons":[{"src":"assets/default-avatar.svg","sizes":"any"}]}
+{
+  "name": "Heart",
+  "short_name": "Heart",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "icons": [
+    {"src":"assets/icon-72x72.png","sizes":"72x72","type":"image/png","purpose":"any"},
+    {"src":"assets/icon-96x96.png","sizes":"96x96","type":"image/png","purpose":"any"},
+    {"src":"assets/icon-128x128.png","sizes":"128x128","type":"image/png","purpose":"any"},
+    {"src":"assets/icon-144x144.png","sizes":"144x144","type":"image/png","purpose":"any"},
+    {"src":"assets/icon-152x152.png","sizes":"152x152","type":"image/png","purpose":"any"},
+    {"src":"assets/icon-180x180.png","sizes":"180x180","type":"image/png","purpose":"any"},
+    {"src":"assets/icon-192x192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"assets/icon-512x512.png","sizes":"512x512","type":"image/png","purpose":"any"},
+    {"src":"assets/maskable-192x192.png","sizes":"192x192","type":"image/png","purpose":"maskable"},
+    {"src":"assets/maskable-512x512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
+  ]
+}
