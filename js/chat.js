@@ -56,6 +56,7 @@ H.chat = (function(){
   }
 
   function bindMsgEvents(){
+    document.querySelectorAll('.message-avatar').forEach(av=>av.onclick=()=>H.poke.openPanel());
     document.querySelectorAll('.message-img').forEach(img=>img.onclick=()=>H.ui.previewImg(img.dataset.full));
     document.querySelectorAll('[data-voice]').forEach(v=>v.onclick=()=>H.voice.play(v.dataset.voice));
     // 长按/点击我方消息：回复或删除
@@ -130,18 +131,20 @@ H.chat = (function(){
 
   async function triggerReply(s){
     s = s || await H.store.getSettings();
-    const typingEl=document.getElementById('typingHint');
-    typingEl.firstChild.textContent=(s.partnerName||'白厄')+'正在输入';
-    typingEl.hidden=false;
     const delay = ((s.typingMin||1) + Math.random()*((s.typingMax||3)-(s.typingMin||1)))*1000;
+    H.statusbar.showTyping(true, s.partnerName);
     setTimeout(async ()=>{
-      typingEl.hidden=true;
+      H.statusbar.showTyping(false);
       const msgs = await H.cards.generateReply();
-      for(const t of msgs){
-        messages.push({ id:H.store.uid(), sender:'other', senderName:s.partnerName||'白厄', type:'text', text:t, quote:null, ts:now() });
+      for(let i=0;i<msgs.length;i++){
+        messages.push({ id:H.store.uid(), sender:'other', senderName:s.partnerName||'白厄', type:'text', text:msgs[i], quote:null, ts:now() });
+        await save(); render();
+        if(i<msgs.length-1){
+          const gap=((s.typingMin||1)+Math.random()*((s.typingMax||3)-(s.typingMin||1)))*1000;
+          await new Promise(r=>setTimeout(r,gap));
+        }
       }
-      await save(); render();
-    }, s.typingMs||1500);
+    }, delay);
   }
 
   return {

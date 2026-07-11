@@ -1,6 +1,30 @@
 /* settings.js — 设置面板（6 分页） */
 H.settings = (function(){
-  let curPage='chat';
+  let curPage='chatcall';
+  let pendingChanges={};
+
+  async function open(page){
+    if(page) curPage=page;
+    const s=await H.store.getSettings();
+    pendingChanges={};
+    H.ui.modal('设置', await html(s), (box)=>bind(box,s));
+  }
+  async function html(s){
+    return `
+    <div class="settings-tabs">
+      ${['chatcall:聊天通话','cards:字卡','look:外观','status:状态格言','data:数据'].map(p=>{const [id,nm]=p.split(':');return `<button class="settings-tab ${curPage===id?'active':''}" data-pg="${id}">${nm}</button>`;}).join('')}
+    </div>
+    <div class="settings-page ${curPage==='chatcall'?'active':''}" data-pg="chatcall">${chatPage(s)}${callPage(s)}</div>
+    <div class="settings-page ${curPage==='cards'?'active':''}" data-pg="cards">${await cardsPage()}</div>
+    <div class="settings-page ${curPage==='call'?'active':''}" data-pg="call">${callPage(s)}</div>
+    <div class="settings-page ${curPage==='look'?'active':''}" data-pg="look">${await lookPage(s)}</div>
+    <div class="settings-page ${curPage==='status'?'active':''}" data-pg="status">${await statusPage()}</div>
+    <div class="settings-page ${curPage==='data'?'active':''}" data-pg="data">${dataPage()}</div>
+    <div style="text-align:right;margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+      <span id="saveStatus" style="font-size:11px;color:var(--text-sub);margin-right:12px"></span>
+      <button class="btn-primary" id="settingsSave">保存</button>
+    </div>`;
+  }
   const THEMES=[
     {id:'wechat',name:'微信白绿',bg:'#FFFFFF',p:'#07C160',s:'#95EC69'},
     {id:'purple',name:'黄紫撞色',bg:'#FAF9F6',p:'#8B5CF6',s:'#FCD34D'},
@@ -8,23 +32,6 @@ H.settings = (function(){
     {id:'watercolor',name:'水彩',bg:'#FFFFFF',p:'#D4A0A0',s:'#7BB8D4'},
     {id:'pink',name:'粉白',bg:'#FFFBFC',p:'#FF7BA9',s:'#FFD6E0'}
   ];
-
-  async function open(){
-    const s=await H.store.getSettings();
-    H.ui.modal('设置', await html(s), (box)=>bind(box,s));
-  }
-  async function html(s){
-    return `
-    <div class="settings-tabs">
-      ${['chat:聊天行为','cards:字卡','call:通话','look:外观','status:状态格言','data:数据'].map(p=>{const [id,nm]=p.split(':');return `<button class="settings-tab ${curPage===id?'active':''}" data-pg="${id}">${nm}</button>`;}).join('')}
-    </div>
-    <div class="settings-page ${curPage==='chat'?'active':''}" data-pg="chat">${chatPage(s)}</div>
-    <div class="settings-page ${curPage==='cards'?'active':''}" data-pg="cards">${await cardsPage()}</div>
-    <div class="settings-page ${curPage==='call'?'active':''}" data-pg="call">${callPage(s)}</div>
-    <div class="settings-page ${curPage==='look'?'active':''}" data-pg="look">${await lookPage(s)}</div>
-    <div class="settings-page ${curPage==='status'?'active':''}" data-pg="status">${await statusPage()}</div>
-    <div class="settings-page ${curPage==='data'?'active':''}" data-pg="data">${dataPage()}</div>`;
-  }
   function row(label, sub, ctrl){ return `<div class="setting-row"><div class="setting-label">${label}${sub?`<small>${sub}</small>`:''}</div><div class="setting-ctrl">${ctrl}</div></div>`; }
   function num(id,v){ return `<input type="number" id="${id}" value="${v}">`; }
 
@@ -93,10 +100,28 @@ H.settings = (function(){
   function typeLabel(t){ return {mood:'心情',weather:'天气',doing:'在做'}[t]||t; }
 
   async function bind(box, s){
-    // 数字/文本字段 onblur 即时保存
-    const numMap={noReplyChance:'noReplyChance',readDelayMin:'readDelayMin',readDelayMax:'readDelayMax',typingMin:'typingMin',typingMax:'typingMax',burstMin:'burstMin',burstMax:'burstMax',burstCap:'burstCap',cardMin:'cardMin',cardMax:'cardMax',cardCap:'cardCap',attachStickerChance:'attachStickerChance',callAnswerRate:'callAnswerRate',callBusyRate:'callBusyRate',callRejectRate:'callRejectRate',hangupChance:'hangupChance',hangupMinSec:'hangupMinSec',activeCallChance:'activeCallChance',activeMsgMin:'activeMsgMin',activeMsgMax:'activeMsgMax',activePokeChance:'activePokeChance'};
-    for(const id in numMap){ const el=box.querySelector('#'+id); if(el) el.onblur=async ()=>{ await H.store.saveSettings({[numMap[id]]:+el.value||0}); }; }
-    ['partnerName','meName'].forEach(id=>{ const el=box.querySelector('#'+id); if(el) el.onblur=async ()=>{ await H.store.saveSettings({[id]:el.value||''}); H.statusbar.render(); }; });
+    const allInputs=box.querySelectorAll('input[type="number"],input[type="text"]');
+    allInputs.forEach(el=>el.addEventListener('input',()=>pendingChanges[el.id]=el.value));
+    // 保存按钮
+    box.querySelector('#settingsSave').onclick=async ()=>{
+      const meFields={}; const settingsPatch={};
+      for(const id in pendingChanges){
+        const v=pendingChanges[id];
+        if(id==='me_mood'||id==='me_weather'||id==='me_doing') meFields[id.replace('me_','')]=v;
+        else if(id==='statusRotateMin'){ settingsPatch.statusRotateMin=+v||15; H.statusbar.stopStatusRotate(); H.statusbar.startStatusRotate(); H.statusbar.startMottoRotate(); }
+        else { const isNum=box.querySelector('#'+id+'[type="number"]'); settingsPatch[id]=isNum?+v||0:v||''; }
+      }
+      if(Object.keys(meFields).length){ const cur=await H.store.getMeStatus(); await H.store.saveMeStatus({...cur,...meFields}); }
+      if(Object.keys(settingsPatch).length) await H.store.saveSettings(settingsPatch);
+      pendingChanges={};
+      box.querySelector('#saveStatus').textContent='已保存'; H.statusbar.render();
+      setTimeout(()=>box.querySelector('#saveStatus').textContent='',2000);
+    };
+    // 切tab标记改动
+    box.querySelectorAll('.settings-tab').forEach(t=>t.onclick=()=>{
+      if(Object.keys(pendingChanges).length){ box.querySelector('#saveStatus').textContent='有未保存的改动'; return; }
+      curPage=t.dataset.pg; open();
+    });
 
     box.querySelectorAll('.settings-tab').forEach(t=>t.onclick=()=>{ curPage=t.dataset.pg; open(); });
     // 聊天页保存

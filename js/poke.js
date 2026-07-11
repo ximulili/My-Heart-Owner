@@ -5,7 +5,7 @@ H.poke = (function(){
     const actions=await H.store.getPokeActions();
     const s=await H.store.getSettings();
     const big=document.getElementById('pokeBigAvatar');
-    big.style.backgroundImage=`url("${s.otherAvatar||'assets/default-avatar.svg'}')`;
+    big.style.backgroundImage=`url('${s.otherAvatar||'assets/default-avatar.svg'}')`;
     const scroll=document.getElementById('pokeActionsScroll');
     scroll.innerHTML = actions.length
       ? actions.map(a=>`<button class="poke-action-btn" data-id="${a.id}">${a.emoji||''} ${esc(a.action)}<span class="del" data-del="${a.id}">×</span></button>`).join('')

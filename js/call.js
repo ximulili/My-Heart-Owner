@@ -61,7 +61,7 @@ H.call = (function(){
 
   function reset(){
     state='idle'; seconds=0; callStart=0; clearInterval(timer); timer=null; clearTimeout(hangupT); hangupT=null; clearTimeout(incomingTimer); incomingTimer=null;
-    const w=document.getElementById('callWindow'); w.hidden=true; w.classList.remove('minimized');
+    const w=document.getElementById('callWindow'); w.hidden=true; w.classList.remove('minimized','call-fullscreen'); w.style.left='';w.style.top='';w.style.right='';w.style.bottom='';
     document.getElementById('callStatusDot').classList.remove('connected');
     document.getElementById('callTimer').textContent='00:00';
     document.getElementById('callStatusText').textContent='呼叫中...';
@@ -69,10 +69,11 @@ H.call = (function(){
   }
   function showWindow(st){
     const w=document.getElementById('callWindow'); w.hidden=false; w.classList.remove('minimized');
+    if(st==='incoming') w.classList.add('call-fullscreen'); else w.classList.remove('call-fullscreen');
     document.getElementById('callStatusDot').classList.remove('connected');
     H.store.getSettings().then(s=>{
       document.getElementById('callName').textContent=s.partnerName||'TA';
-      document.getElementById('callAvatar').style.backgroundImage=`url("${s.otherAvatar||'assets/default-avatar.svg'}')`;
+      document.getElementById('callAvatar').style.backgroundImage=`url('${s.otherAvatar||'assets/default-avatar.svg'}')`;
     });
     const statusEl=document.getElementById('callStatusText');
     const ctrl=document.querySelector('.call-controls');
@@ -89,12 +90,15 @@ H.call = (function(){
 
   function initDrag(){
     const w=document.getElementById('callWindow'), h=document.getElementById('callHeader');
-    let dx,dy,dragging=false;
-    h.addEventListener('pointerdown',(e)=>{ if(e.target.closest('#callMinimize,#callCloseBtn')) return; if(w.classList.contains('minimized')) return; dragging=true; dx=e.clientX-w.offsetLeft; dy=e.clientY-w.offsetTop; h.setPointerCapture(e.pointerId); });
+    let dx,dy,dragging=false,startX=0,startY=0;
+    h.addEventListener('pointerdown',(e)=>{ if(e.target.closest('#callMinimize,#callCloseBtn')) return; dragging=true; startX=e.clientX;startY=e.clientY; dx=e.clientX-w.offsetLeft; dy=e.clientY-w.offsetTop; h.setPointerCapture(e.pointerId); });
     h.addEventListener('pointermove',(e)=>{ if(dragging){ w.style.left=(e.clientX-dx)+'px'; w.style.top=(e.clientY-dy)+'px'; w.style.right='auto'; w.style.bottom='auto'; } });
     h.addEventListener('pointerup',()=>dragging=false);
     document.getElementById('callMinimize').onclick=()=>w.classList.toggle('minimized');
-    h.addEventListener('click',(e)=>{ if(e.target.closest('#callMinimize,#callCloseBtn')) return; if(w.classList.contains('minimized')) w.classList.remove('minimized'); });
+    h.addEventListener('click',(e)=>{
+      if(e.target.closest('#callMinimize,#callCloseBtn')) return;
+      if(w.classList.contains('minimized') && Math.abs(e.clientX-startX)<5 && Math.abs(e.clientY-startY)<5) w.classList.remove('minimized');
+    });
     document.getElementById('callCloseBtn').onclick=hangup;
   }
   return { start, incoming, hangup, answer, initDrag, get state(){return state;} };

@@ -50,7 +50,8 @@ H.sticker = (function(){
   }
   async function randomAttach(){
     const custom=await H.store.getEmojiCustom();
-    const all=[...H.store.EMOJI_BUILTIN.flatMap(c=>c.items), ...custom];
+    const hidden=await H.store.getEmojiHidden();
+    const all=[...H.store.EMOJI_BUILTIN.flatMap(c=>c.items).filter(e=>!hidden.includes(e)), ...custom];
     return all.length ? all[Math.floor(Math.random()*all.length)] : null;
   }
   async function uploadSticker(who, file){
@@ -78,11 +79,13 @@ H.sticker = (function(){
   async function openEmojiManager(){
     const builtin=H.store.EMOJI_BUILTIN;
     const custom=await H.store.getEmojiCustom();
-    let html=`<div style="font-size:13px;margin-bottom:8px;color:var(--text-sub)">内置 emoji（共 ${builtin.reduce((n,c)=>n+c.items.length,0)} 个，可在表情面板直接用）</div>`;
+    const hidden=await H.store.getEmojiHidden();
+    let html=`<div style="font-size:13px;margin-bottom:8px;color:var(--text-sub)">内置 emoji（共 ${builtin.reduce((n,c)=>n+c.items.length,0)} 个，点 × 隐藏，底部恢复）</div>`;
     builtin.forEach(c=>{
-      html+=`<div style="font-size:12px;margin:10px 0 4px;color:var(--text-sub)">${c.cat}（${c.items.length}）</div><div class="emoji-grid">${c.items.map(e=>`<div class="emoji-cell">${e}</div>`).join('')}</div>`;
+      html+=`<div style="font-size:12px;margin:10px 0 4px;color:var(--text-sub)">${c.cat}（${c.items.length}）</div><div class="emoji-grid">${c.items.map((e,i)=>`<div class="emoji-cell${hidden.includes(e)?' hidden-emoji':''}" data-bhide="${esc(e)}">${e}<span class="rm">×</span></div>`).join('')}</div>`;
     });
     html+=`<div style="font-size:12px;margin:14px 0 4px;color:var(--text-sub)">我的自定义 emoji（${custom.length}）</div><div class="emoji-grid" id="customGrid">${custom.length?custom.map((e,i)=>`<div class="emoji-cell custom" data-i="${i}">${e}<span class="rm">×</span></div>`).join(''):'<div class="combo-empty" style="grid-column:1/-1">还没有自定义</div>'}</div>`;
+    if(hidden.length) html+=`<div style="font-size:12px;margin:14px 0 4px;color:var(--text-sub)">已隐藏（${hidden.length}）</div><div class="emoji-grid">${hidden.map(e=>`<div class="emoji-cell hidden-emoji" data-bshow="${esc(e)}" style="cursor:pointer">${e}<span style="font-size:9px;margin-left:2px">恢复</span></div>`).join('')}</div>`;
     html+=`<div style="margin-top:12px"><button class="btn-ghost" id="addEmoji">＋ 添加自定义 emoji</button></div>`;
     H.ui.modal('Emoji 管理', html, (box)=>{
       box.querySelector('#addEmoji').onclick=()=>{
@@ -92,6 +95,8 @@ H.sticker = (function(){
           H.ui.closeModal(); openEmojiManager();
         });
       };
+      box.querySelectorAll('[data-bhide]').forEach(c=>{ c.querySelector('.rm').onclick=async (e)=>{ e.stopPropagation(); const h=await H.store.getEmojiHidden(); h.push(c.dataset.bhide); await H.store.saveEmojiHidden(h); openEmojiManager(); }; });
+      box.querySelectorAll('[data-bshow]').forEach(c=>{ c.onclick=async ()=>{ const h=await H.store.getEmojiHidden(); const i=h.indexOf(c.dataset.bshow); if(i>=0) h.splice(i,1); await H.store.saveEmojiHidden(h); openEmojiManager(); }; });
       box.querySelectorAll('#customGrid .custom').forEach(c=>{
         c.querySelector('.rm').onclick=async (e)=>{
           e.stopPropagation();

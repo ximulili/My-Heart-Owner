@@ -66,6 +66,9 @@ H.app = (function(){
     H.call.initDrag();
     bindEvents();
     startScheduler();
+    // PWA 注册
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js'); }
+    if('Notification' in window && Notification.permission==='default'){ Notification.requestPermission(); }
   }
 
   function bindEvents(){
@@ -74,7 +77,8 @@ H.app = (function(){
     document.getElementById('partnerName').onclick = ()=> H.poke.openPanel();
     document.getElementById('meAvatar').onclick = ()=> H.avatar.openEditor('me');
     document.getElementById('meName').onclick = ()=> H.avatar.openEditor('me');
-    document.getElementById('meStatus').onclick = ()=> H.settings.open();
+    document.getElementById('meStatus').onclick = ()=> H.settings.open('status');
+    document.getElementById('otherStatus').onclick = ()=> H.settings.open('status');
     // 中间按钮
     document.getElementById('btnVoiceCall').onclick = ()=> H.call.start('voice');
     document.getElementById('btnVideoCall').onclick = ()=> H.call.start('video');
