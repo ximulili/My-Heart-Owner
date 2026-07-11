@@ -1,11 +1,18 @@
 /* ============ Heart 样式 ============ */
+@font-face{
+  font-family:'HuaKangSongW5';
+  src:url('../assets/HuaKangSongW5.ttf') format('truetype');
+  font-weight:normal;
+  font-style:normal;
+  font-display:block;
+}
 :root{
   --radius-sm:2px; --radius-md:6px; --radius-lg:12px; --radius-xl:16px; --radius-2xl:18px; --radius-full:9999px;
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
   --shadow-sm:0 1px 2px 0 rgba(0,0,0,.05);
   --shadow-md:0 4px 6px -1px rgba(0,0,0,.08),0 2px 4px -2px rgba(0,0,0,.06);
   --shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.06);
-  --font:'Noto Serif SC',Georgia,serif;
+  --font:'HuaKangSongW5','Noto Serif SC',Georgia,serif;
 }
 [data-theme="wechat"]{--bg:#FFFFFF;--surface:#FFFFFF;--surface-2:#F7F7F7;--primary:#07C160;--primary-soft:#95EC69;--primary-deep:#06A04F;--bubble-me:#95EC69;--bubble-me-text:#1A1A1A;--bubble-other:#FFFFFF;--bubble-other-text:#1A1A1A;--text-main:#1A1A1A;--text-sub:#888;--text-on:#FFFFFF;--border:#EAEAEA;--header-bg:rgba(255,255,255,.82)}
 [data-theme="purple"]{--bg:#FAF9F6;--surface:#FFFFFF;--surface-2:#F3EEFF;--primary:#8B5CF6;--primary-soft:#FCD34D;--primary-deep:#6D28D9;--bubble-me:#8B5CF6;--bubble-me-text:#FFFFFF;--bubble-other:#FCD34D;--bubble-other-text:#4C1D95;--text-main:#2D2438;--text-sub:#8A7FA0;--text-on:#FFFFFF;--border:#E9E4F0;--header-bg:rgba(250,249,246,.82)}

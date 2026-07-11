@@ -11,13 +11,15 @@ let bgActive=false;
 function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 
-async function checkAndGenerate(){
+async function generateAndStore(){
   const s=await getVal('settings')||{};
   const cards=await getVal('cards')||[];
   const groups=await getVal('groups')||[];
   const disabledGroups=new Set((groups||[]).filter(g=>g.disabled).map(g=>g.id));
   const pool=cards.filter(c=>!c.disabled&&!disabledGroups.has(c.groupId));
-  if(!pool.length) return null;
+  if(!pool.length) return false;
+
+  // 生成消息
   const burst=Math.min(1+Math.floor(Math.random()*(s.burstMax||3)), s.burstCap||10);
   const texts=[];
   for(let i=0;i<burst;i++){
@@ -27,26 +29,38 @@ async function checkAndGenerate(){
     for(let j=0;j<cardN&&copy.length;j++){const idx=Math.floor(Math.random()*copy.length);picks.push(copy.splice(idx,1)[0]);}
     texts.push(picks.map(p=>p.text).join(' '));
   }
-  return {texts, partnerName:s.partnerName||'TA'};
-}
 
-async function generateAndStore(){
-  const result=await checkAndGenerate();
-  if(!result) return;
+  // 写入存储
   const now=Date.now();
   const msgs=await getVal('messages')||[];
-  const newMsgs=result.texts.map(text=>({id:uid(),sender:'other',senderName:result.partnerName,type:'text',text,quote:null,ts:now}));
+  const newMsgs=texts.map((text,i)=>({
+    id:uid()+i,
+    sender:'other',
+    senderName:s.partnerName||'TA',
+    type:'text',
+    text,
+    quote:null,
+    ts:now+i // 每条消息间隔1ms确保顺序
+  }));
   msgs.push(...newMsgs);
   await setVal('messages',msgs);
-  // 通知所有客户端
+
+  // 弹通知
+  const body=texts.join(' ');
+  try{
+    await self.registration.showNotification(s.partnerName||'TA',{
+      body,
+      icon:'assets/icon-192x192.png',
+      tag:'heart-msg',
+      renotify:true
+    });
+  }catch(e){}
+
+  // 通知活跃客户端
   const clients=await self.clients.matchAll();
-  if(clients.length){
-    clients.forEach(c=>c.postMessage({type:'sw:newMessages',messages:newMsgs}));
-  } else {
-    // 无客户端活跃，弹通知
-    const body=result.texts.join(' ');
-    self.registration.showNotification(result.partnerName,{body,icon:'assets/icon-192x192.png',tag:'heart-msg'});
-  }
+  clients.forEach(c=>c.postMessage({type:'sw:newMessages',count:newMsgs.length}));
+
+  return true;
 }
 
 function startBgSchedule(){
@@ -54,19 +68,19 @@ function startBgSchedule(){
   bgActive=true;
   const check=async()=>{
     if(!bgActive) return;
-    const s=await getVal('settings')||{};
-    const min=(s.activeMsgMin||5)*60000;
-    const max=(s.activeMsgMax||30)*60000;
-    const lastCheck=parseInt(await getVal('_bg_last')||'0');
-    const now=Date.now();
-    const elapsed=now-lastCheck;
-    if(elapsed>=min){
-      const shouldMsg = elapsed >= min + Math.random()*(max-min);
-      if(shouldMsg){
+    try{
+      const s=await getVal('settings')||{};
+      const min=(s.activeMsgMin||5)*60000;
+      const max=(s.activeMsgMax||30)*60000;
+      const nextCheck=parseInt(await getVal('_bg_next')||'0');
+      const now=Date.now();
+      if(now>=nextCheck){
         await generateAndStore();
-        await setVal('_bg_last',now);
+        // 计算下次发送时间
+        const delay=min+Math.random()*(max-min);
+        await setVal('_bg_next',now+delay);
       }
-    }
+    }catch(e){}
   };
   check();
   bgTimer=setInterval(check,30000);

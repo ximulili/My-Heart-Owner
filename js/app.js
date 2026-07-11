@@ -68,8 +68,18 @@ H.app = (function(){
     startScheduler();
     // PWA 注册 + 后台调度
     if('serviceWorker' in navigator){
-      navigator.serviceWorker.register('sw.js').then(reg=>{
-        if(reg.active) reg.active.postMessage(document.hidden?'startBg':'stopBg');
+      navigator.serviceWorker.register('sw.js').then(async(reg)=>{
+        // 等待 SW 激活
+        const sw = reg.installing || reg.waiting || reg.active;
+        if(sw){
+          if(sw.state !== 'activated'){
+            await new Promise(r=>sw.addEventListener('statechange',()=>{if(sw.state==='activated')r()}));
+          }
+        }
+        //发送初始状态
+        if(navigator.serviceWorker.controller){
+          navigator.serviceWorker.controller.postMessage(document.hidden?'startBg':'stopBg');
+        }
         // 监听 SW 消息
         navigator.serviceWorker.addEventListener('message',e=>{
           if(e.data && e.data.type==='sw:newMessages'){
@@ -78,11 +88,14 @@ H.app = (function(){
         });
       });
     }
-    if('Notification' in window && Notification.permission==='default'){ Notification.requestPermission(); }
+    if('Notification' in window && Notification.permission==='default'){
+      Notification.requestPermission();
+    }
     // 后台切换：通知 SW 接管/归还调度
     document.addEventListener('visibilitychange',()=>{
-      if(!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
-      navigator.serviceWorker.controller.postMessage(document.hidden?'startBg':'stopBg');
+      if(navigator.serviceWorker && navigator.serviceWorker.controller){
+        navigator.serviceWorker.controller.postMessage(document.hidden?'startBg':'stopBg');
+      }
     });
   }
 
