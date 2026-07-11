@@ -58,7 +58,8 @@ H.chat = (function(){
   }
 
   function bindMsgEvents(){
-    document.querySelectorAll('.message-avatar').forEach(av=>av.onclick=()=>H.poke.openPanel());
+    document.querySelectorAll('.message-wrapper.received .message-avatar').forEach(av=>av.onclick=()=>H.poke.openPanel('other'));
+    document.querySelectorAll('.message-wrapper.sent .message-avatar').forEach(av=>av.onclick=()=>H.poke.openPanel('me'));
     document.querySelectorAll('.message-img').forEach(img=>img.onclick=()=>H.ui.previewImg(img.dataset.full));
     document.querySelectorAll('[data-voice]').forEach(v=>v.onclick=()=>H.voice.play(v.dataset.voice));
     // 长按/点击我方消息：回复或删除
