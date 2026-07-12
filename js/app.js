@@ -137,6 +137,66 @@ H.app = (function(){
     return true;
   }
 
+  // 播放通知声音并触发通知
+  function playNotifySound(title, body){
+    // 播放提示音
+    const n = document.getElementById('notifyAudio');
+    if(n){ n.currentTime=0; n.play().catch(()=>{}); }
+    // 震动
+    if(navigator.vibrate) navigator.vibrate(200);
+    // 系统通知（后台）
+    if(document.hidden && 'Notification' in window && Notification.permission==='granted'){
+      try{ new Notification(title, {body, tag:'heart-msg', renotify:true}); } catch(e){}
+    }
+    // 应用内Banner（前台但聊天界面被挡住）
+    if(!document.hidden && !isChatVisible()){
+      H.ui.showBanner(title, body, H.chat.scrollToBottom);
+    }
+  }
+
+  // 主动消息调度
+  let proactiveMsgTimer = null;
+  async function scheduleProactiveMessage(){
+    if(proactiveMsgTimer) clearTimeout(proactiveMsgTimer);
+    const s = await H.store.getSettings();
+    const min = (s.activeMsgMin || 5) * 60000;
+    const max = (s.activeMsgMax || 30) * 60000;
+    const delay = min + Math.random() * (max - min);
+    
+    proactiveMsgTimer = setTimeout(async()=>{
+      try{
+        // 生成消息
+        const msgs = await H.cards.generateReply();
+        if(msgs && msgs.length > 0){
+          for(const text of msgs){
+            const msg = {
+              id: H.store.uid(),
+              sender: 'other',
+              senderName: s.partnerName || 'TA',
+              type: 'text',
+              text,
+              quote: null,
+              ts: Date.now()
+            };
+            // 保存消息
+            H.chat.messages.push(msg);
+            await H.chat.save();
+            // 触发通知
+            playNotifySound(s.partnerName || 'TA', text);
+            // 如果聊天界面可见，渲染消息
+            if(isChatVisible()){
+              H.chat.render();
+            }
+          }
+        }
+      } catch(e){
+        console.error('scheduleProactiveMessage error:', e);
+      }
+      // 继续调度下一条消息
+      scheduleProactiveMessage();
+    }, delay);
+  }
+
   async function applyTheme(){
     const s = await H.store.getSettings();
     document.body.setAttribute('data-theme', s.theme||'wechat');
@@ -170,8 +230,21 @@ H.app = (function(){
     document.addEventListener('visibilitychange',()=>{
       if(document.visibilityState==='visible'){
         H.keepalive.tryPlay();
+        // 页面可见时检查是否有新消息
+        H.chat.load().then(() => H.chat.render());
       }
     });
+    // 启动主动消息调度
+    scheduleProactiveMessage();
+    // 监听Service Worker消息
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.addEventListener('message', e => {
+        if(e.data && e.data.type === 'sw:checkMessages'){
+          // 检查新消息
+          H.chat.load().then(() => H.chat.render());
+        }
+      });
+    }
   }
 
   function bindEvents(){
@@ -242,7 +315,7 @@ H.app = (function(){
     });
   }
 
-  return { init, applyTheme, applyChatBg, compressImage, isChatVisible };
+  return { init, applyTheme, applyChatBg, compressImage, isChatVisible, playNotifySound };
 })();
 
 document.addEventListener('DOMContentLoaded', ()=> H.app.init());

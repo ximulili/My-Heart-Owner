@@ -168,18 +168,6 @@ H.chat = (function(){
     }
   }
 
-  document.addEventListener('visibilitychange', async()=>{
-    if(document.visibilityState==='visible'){
-      // 从存储加载 SW 可能写入的新消息
-      const stored = await H.store.getMessages();
-      if(stored.length > messages.length){
-        messages = stored;
-        render();
-      }
-      processPending();
-    }
-  });
-
   async function triggerReply(s){
     s = s || await H.store.getSettings();
     const tMin = Number(s.typingMin)||1, tMax = Number(s.typingMax)||3;
@@ -206,15 +194,8 @@ H.chat = (function(){
         messages.push(msg);
         await save(); render();
 
-        // 触发通知
-        if(document.hidden){
-          // 页面在后台：浏览器通知
-          H.ui.showNotification(s.partnerName||'TA', msgs[i]);
-        } else if(!H.app.isChatVisible()){
-          // 页面在前台但聊天界面被挡住：应用内 Banner
-          H.ui.showBanner(s.partnerName||'TA', msgs[i], scrollToBottom);
-        }
-        // 如果聊天界面可见，不弹出任何通知
+        // 触发通知（使用新的通知函数）
+        H.app.playNotifySound(s.partnerName||'TA', msgs[i]);
 
         if(i<msgs.length-1){
           const gap=(tMin + Math.random()*(tMax - tMin))*1000;
