@@ -42,7 +42,8 @@ H.settings = (function(){
       + row('正在输入时长','秒，区间',`${num('typingMin',s.typingMin)}${num('typingMax',s.typingMax)}`)
       + row('连发条数','min / max / 上限',`${num('burstMin',s.burstMin)}${num('burstMax',s.burstMax)}${num('burstCap',s.burstCap)}`)
       + row('每条内字卡张数','min / max / 上限',`${num('cardMin',s.cardMin)}${num('cardMax',s.cardMax)}${num('cardCap',s.cardCap)}`)
-      + row('附带表情概率','%，回复时附带emoji的概率',num('attachStickerChance',s.attachStickerChance));
+      + row('附带表情概率','%，回复时附带emoji的概率',num('attachStickerChance',s.attachStickerChance))
+      + row('发表情包图片概率','%，回复时发表情包图片的概率',num('replyStickerImgChance',s.replyStickerImgChance));
   }
   async function cardsPage(){
     const cards=await H.store.getCards(); const groups=await H.store.getGroups();

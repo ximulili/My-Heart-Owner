@@ -54,6 +54,11 @@ H.sticker = (function(){
     const all=[...H.store.EMOJI_BUILTIN.flatMap(c=>c.items).filter(e=>!hidden.includes(e)), ...custom];
     return all.length ? all[Math.floor(Math.random()*all.length)] : null;
   }
+  async function randomAttachImg(who='other'){
+    const imgs = await H.store.getStickers(who);
+    if(!imgs.length) return null;
+    return imgs[Math.floor(Math.random()*imgs.length)].data;
+  }
   async function uploadSticker(who, file){
     if(file.size>2*1024*1024){ H.ui.toast('单张不能超过 2MB'); return; }
     // 压缩图片
@@ -117,5 +122,5 @@ H.sticker = (function(){
     });
   }
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-  return { togglePopover, setTab, randomAttach, uploadSticker, addCurrent, openEmojiManager, get curTab(){return curTab;} };
+  return { togglePopover, setTab, randomAttach, randomAttachImg, uploadSticker, addCurrent, openEmojiManager, get curTab(){return curTab;} };
 })();

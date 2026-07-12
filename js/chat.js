@@ -190,6 +190,23 @@ H.chat = (function(){
     try {
       const msgs = await H.cards.generateReply();
       for(let i=0;i<msgs.length;i++){
+        // 根据概率决定是否发表情包图片
+        const imgChance = s.replyStickerImgChance || 20;
+        if(Math.random()*100 < imgChance){
+          const img = await H.sticker.randomAttachImg('other');
+          if(img){
+            const msg={ id:H.store.uid(), sender:'other', senderName:s.partnerName||'白厄', type:'sticker-img', dataUrl:img, text:'', quote:null, ts:now() };
+            messages.push(msg);
+            await save(); render();
+            H.app.playNotifySound(s.partnerName||'TA', '[表情包]');
+            if(i<msgs.length-1){
+              const gap=(tMin + Math.random()*(tMax - tMin))*1000;
+              await new Promise(r=>setTimeout(r,gap));
+            }
+            continue;
+          }
+        }
+        // 否则发送文字消息
         const msg={ id:H.store.uid(), sender:'other', senderName:s.partnerName||'白厄', type:'text', text:msgs[i], quote:null, ts:now() };
         messages.push(msg);
         await save(); render();

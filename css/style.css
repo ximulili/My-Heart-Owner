@@ -39,12 +39,12 @@ textarea,input{font-family:inherit;outline:none;border:none}
 .motto-text{font-size:11px;letter-spacing:2px;font-weight:500;background:linear-gradient(90deg,var(--primary),var(--primary-soft));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
 .header-inner{display:flex;align-items:center;justify-content:space-between;padding:6px 12px 10px;gap:6px}
 .user-info{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:62px;cursor:pointer}
-.user-name{font-size:12px;font-weight:500;color:var(--text-main);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-name{font-size:12px;font-weight:500;color:var(--text-main);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .user-avatar{width:40px;height:40px;background:var(--surface-2);border:1px solid var(--border);background-size:cover;background-position:center}
 .user-avatar[data-shape="circle"]{border-radius:50%}
 .user-avatar[data-shape="square"]{border-radius:var(--radius-md)}
-.user-status{font-size:10px;color:var(--text-sub);max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.user-status::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--primary-soft);margin-right:4px;vertical-align:middle}
+.user-status{font-size:10px;color:var(--text-sub);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-status::before{content:"";display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--primary-soft);margin-right:4px;vertical-align:middle}
 .user-avatar:hover{border-color:var(--primary-soft);box-shadow:0 0 0 2px var(--primary-soft)}
 .header-actions{display:flex;gap:2px;flex:1;justify-content:center}
 .action-btn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-sub);transition:background .15s,color .15s}
@@ -67,7 +67,7 @@ textarea,input{font-family:inherit;outline:none;border:none}
 .message-wrapper.received .message{background:var(--bubble-other);color:var(--bubble-other-text);border-bottom-left-radius:6px}
 .message-wrapper.sent .message{background:var(--bubble-me);color:var(--bubble-me-text);border-bottom-right-radius:6px}
 .message-meta{font-size:11px;color:var(--text-sub);margin:4px 10px 0;opacity:.85;display:flex;align-items:center;gap:6px}
-.message-read.read{color:#5B9BD5}
+.message-read.read{color:var(--primary-soft)}
 .message-read.noreply{color:#E08A8A}
 .system-message{font-size:12px;color:var(--text-sub);letter-spacing:1px;background:var(--surface-2);padding:4px 12px;border-radius:var(--radius-full);text-align:center}
 .date-divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--text-sub);font-size:11px}
