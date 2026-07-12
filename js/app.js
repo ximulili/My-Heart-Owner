@@ -286,7 +286,12 @@ H.app = (function(){
     document.getElementById('comboManage').onclick = ()=>{
       const tab = H.sticker.curTab;
       if(tab==='poke') H.poke.openPanel();
-      else if(tab==='mine' || tab==='other') H.sticker.openEmojiManager();
+      else if(tab==='mine' || tab==='other'){
+        H.ui.actionSheet([
+          {label:'管理 Emoji', fn:()=> H.sticker.openEmojiManager()},
+          {label:'管理表情包图片', fn:()=> H.sticker.openStickerManager()}
+        ]);
+      }
       else H.ui.toast('请先选择一个 tab');
     };
     // 点击消息流空白关闭 combo

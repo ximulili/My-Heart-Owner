@@ -121,6 +121,57 @@ H.sticker = (function(){
       });
     });
   }
+  async function openStickerManager(){
+    const mineStickers=await H.store.getStickers('mine');
+    const otherStickers=await H.store.getStickers('other');
+    let html=`<div style="font-size:13px;margin-bottom:12px;color:var(--text-sub)">表情包图片管理</div>`;
+    html+=`<div style="font-size:12px;margin-bottom:4px;color:var(--text-sub)">我的表情（${mineStickers.length}）</div>`;
+    html+=`<div class="emoji-grid" id="mineStickerGrid">`;
+    if(mineStickers.length){
+      html+=mineStickers.map(s=>`<div class="emoji-cell" data-who="mine" data-id="${s.id}"><img src="${s.data}" style="width:100%;height:100%;object-fit:cover"><span class="rm">×</span></div>`).join('');
+    } else {
+      html+=`<div class="combo-empty" style="grid-column:1/-1">还没有表情</div>`;
+    }
+    html+=`</div>`;
+    html+=`<div style="font-size:12px;margin:14px 0 4px;color:var(--text-sub)">对方表情（${otherStickers.length}）</div>`;
+    html+=`<div class="emoji-grid" id="otherStickerGrid">`;
+    if(otherStickers.length){
+      html+=otherStickers.map(s=>`<div class="emoji-cell" data-who="other" data-id="${s.id}"><img src="${s.data}" style="width:100%;height:100%;object-fit:cover"><span class="rm">×</span></div>`).join('');
+    } else {
+      html+=`<div class="combo-empty" style="grid-column:1/-1">还没有表情</div>`;
+    }
+    html+=`</div>`;
+    html+=`<div style="margin-top:12px;display:flex;gap:8px"><button class="btn-ghost" id="addMineSticker">＋ 添加我的表情</button><button class="btn-ghost" id="addOtherSticker">＋ 添加对方表情</button></div>`;
+    H.ui.modal('表情包管理', html, (box)=>{
+      // 删除表情
+      box.querySelectorAll('.emoji-cell[data-id]').forEach(cell=>{
+        cell.querySelector('.rm').onclick=async (e)=>{
+          e.stopPropagation();
+          const who=cell.dataset.who;
+          const id=cell.dataset.id;
+          const arr=await H.store.getStickers(who);
+          const idx=arr.findIndex(s=>s.id===id);
+          if(idx>=0){
+            arr.splice(idx,1);
+            await H.store.saveStickers(who, arr);
+            openStickerManager();
+          }
+        };
+      });
+      // 添加我的表情
+      box.querySelector('#addMineSticker').onclick=()=>{
+        const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.multiple=true; inp.hidden=true;
+        inp.onchange=()=>{ if(inp.files.length>0) uploadStickers('mine', inp.files); inp.remove(); };
+        document.body.appendChild(inp); inp.click();
+      };
+      // 添加对方表情
+      box.querySelector('#addOtherSticker').onclick=()=>{
+        const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.multiple=true; inp.hidden=true;
+        inp.onchange=()=>{ if(inp.files.length>0) uploadStickers('other', inp.files); inp.remove(); };
+        document.body.appendChild(inp); inp.click();
+      };
+    });
+  }
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-  return { togglePopover, setTab, randomAttach, randomAttachImg, uploadSticker, addCurrent, openEmojiManager, get curTab(){return curTab;} };
+  return { togglePopover, setTab, randomAttach, randomAttachImg, uploadSticker, addCurrent, openEmojiManager, openStickerManager, get curTab(){return curTab;} };
 })();
