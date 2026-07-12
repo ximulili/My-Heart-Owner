@@ -54,8 +54,7 @@ H.settings = (function(){
     return row('接通率','%',num('callAnswerRate',s.callAnswerRate))
       + row('忙线率','%',num('callBusyRate',s.callBusyRate))
       + row('拒绝率','%',num('callRejectRate',s.callRejectRate))
-      + row('对方主动挂断概率','%，接通后对方随机挂断',num('hangupChance',s.hangupChance))
-      + row('最短通话时长','秒，挂断至少在此之后',num('hangupMinSec',s.hangupMinSec))
+      + '<div style="font-size:11px;color:var(--text-sub);margin:8px 0">通话中每秒有0.01%概率对方主动挂断</div>'
       + '<div style="font-size:12px;color:var(--text-sub);margin:10px 0 4px">对方主动行为（概率 %）</div>'
       + row('主动来电',`${num('activeCallChance',s.activeCallChance)}`)
       + row('主动发消息','最快/最慢 分钟，随机间隔必发',`${num('activeMsgMin',s.activeMsgMin)}${num('activeMsgMax',s.activeMsgMax)}`)

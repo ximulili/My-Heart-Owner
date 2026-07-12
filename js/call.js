@@ -42,19 +42,20 @@ H.call = (function(){
     el('callStatusText').textContent='通话中';
     if(type==='video') el('callVideoPane').hidden=false;
     setActions('connected');
+    const hangupMsgs=['搭档我有点事，先挂了','宝宝我先挂了，待会聊','老婆拜拜，突然有事','我已去拯救世界，请待会联系救世主'];
     timer=setInterval(()=>{
       seconds=Math.floor((Date.now()-callStart)/1000);
       el('callTimer').textContent=fmt(seconds);
       if(el('callMiniTimer')) el('callMiniTimer').textContent=fmt(seconds);
-    },1000);
-    H.store.getSettings().then(s=>{
-      if(Math.random()*100 < (s.hangupChance||0)){
-        const after=(s.hangupMinSec||15)*1000 + Math.random()*10000;
-        hangupT=setTimeout(()=>{
-          if(state==='connected'){ H.chat.appendSystem(`${s.partnerName||'TA'} 挂断了通话`); hangup(); }
-        }, after);
+      // 每秒检查是否挂断（SN方式）
+      if(Math.random()<0.0001){
+        H.store.getSettings().then(s=>{
+          const msg=hangupMsgs[Math.floor(Math.random()*hangupMsgs.length)];
+          H.chat.appendSystem(`${s.partnerName||'TA'}：${msg}`);
+          hangup();
+        });
       }
-    });
+    },1000);
   }
 
   function hangup(){
