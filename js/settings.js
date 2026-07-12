@@ -132,9 +132,9 @@ H.settings = (function(){
     box.querySelector('#bgUpload')&&(box.querySelector('#bgUpload').onclick=()=>box.querySelector('#bgFile').click());
     box.querySelector('#bgFile')&&(box.querySelector('#bgFile').onchange=async (e)=>{
       const f=e.target.files[0]; if(!f) return;
-      // 压缩图片
-      const compressed = await H.app.compressImage(f, 1000, 0.72);
-      await H.store.saveSettings({chatBg:compressed}); H.app.applyChatBg(); H.ui.toast('已设置背景'); open();
+      const r=new FileReader();
+      r.onload=async ()=>{ await H.store.saveSettings({chatBg:r.result}); H.app.applyChatBg(); H.ui.toast('已设置背景'); open(); };
+      r.readAsDataURL(f);
     });
     box.querySelector('#bgClear')&&(box.querySelector('#bgClear').onclick=async ()=>{ await H.store.saveSettings({chatBg:''}); H.app.applyChatBg(); open(); });
     box.querySelector('#editOtherAv')&&(box.querySelector('#editOtherAv').onclick=()=>H.avatar.openEditor('other'));

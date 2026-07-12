@@ -266,12 +266,15 @@ H.app = (function(){
     input.addEventListener('input', ()=>autoGrow(input));
     document.getElementById('btnImage').onclick = ()=> document.getElementById('imageFile').click();
     document.getElementById('imageFile').onchange = async (e)=>{
-      const f=e.target.files[0];
-      if(!f) return;
+      const files=Array.from(e.target.files);
+      if(!files.length) return;
       e.target.value='';
-      // 压缩图片
-      const compressed = await compressImage(f, 1000, 0.72);
-      H.chat.sendImage(compressed);
+      // 批量发送图片
+      for(const f of files){
+        // 压缩图片
+        const compressed = await compressImage(f, 1000, 0.72);
+        await H.chat.sendImage(compressed);
+      }
     };
     document.getElementById('btnSticker').onclick = ()=> H.sticker.togglePopover();
     H.voice.bind(document.getElementById('btnVoice'));

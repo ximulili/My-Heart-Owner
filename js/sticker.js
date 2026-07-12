@@ -55,23 +55,31 @@ H.sticker = (function(){
     return all.length ? all[Math.floor(Math.random()*all.length)] : null;
   }
   async function uploadSticker(who, file){
-    if(file.size>500*1024){ H.ui.toast('单张不能超过 500KB'); return; }
-    const r=new FileReader();
-    r.onload=async ()=>{
-      const arr=await H.store.getStickers(who);
-      arr.push({id:H.store.uid(), data:r.result});
-      await H.store.saveStickers(who, arr);
-      H.ui.toast('已添加');
+    if(file.size>2*1024*1024){ H.ui.toast('单张不能超过 2MB'); return; }
+    // 压缩图片
+    const dataUrl = await H.app.compressImage(file, 500, 0.8);
+    const arr=await H.store.getStickers(who);
+    arr.push({id:H.store.uid(), data:dataUrl});
+    await H.store.saveStickers(who, arr);
+  }
+  async function uploadStickers(who, files){
+    let count=0;
+    for(const file of files){
+      if(file.size>2*1024*1024){ H.ui.toast(`${file.name} 超过 2MB，已跳过`); continue; }
+      await uploadSticker(who, file);
+      count++;
+    }
+    if(count>0){
+      H.ui.toast(`已添加 ${count} 张表情`);
       renderPane(curTab);
-    };
-    r.readAsDataURL(file);
+    }
   }
   function addCurrent(){
     if(curTab==='poke'){ H.poke.addAction(); return; }
     if(curTab==='mine' || curTab==='other'){
       const who=curTab;
-      const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.hidden=true;
-      inp.onchange=()=>{ if(inp.files[0]) uploadSticker(who, inp.files[0]); inp.remove(); };
+      const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.multiple=true; inp.hidden=true;
+      inp.onchange=()=>{ if(inp.files.length>0) uploadStickers(who, inp.files); inp.remove(); };
       document.body.appendChild(inp); inp.click();
       return;
     }

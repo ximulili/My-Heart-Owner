@@ -67,6 +67,7 @@ textarea,input{font-family:inherit;outline:none;border:none}
 .message-wrapper.received .message{background:var(--bubble-other);color:var(--bubble-other-text);border-bottom-left-radius:6px}
 .message-wrapper.sent .message{background:var(--bubble-me);color:var(--bubble-me-text);border-bottom-right-radius:6px}
 .message-meta{font-size:11px;color:var(--text-sub);margin:4px 10px 0;opacity:.85;display:flex;align-items:center;gap:6px}
+.message-read.read{color:#5B9BD5}
 .message-read.noreply{color:#E08A8A}
 .system-message{font-size:12px;color:var(--text-sub);letter-spacing:1px;background:var(--surface-2);padding:4px 12px;border-radius:var(--radius-full);text-align:center}
 .date-divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--text-sub);font-size:11px}
